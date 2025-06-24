@@ -4,24 +4,29 @@ import fitz  # PyMuPDF
 import openai
 import spacy
 
-# Setup
+# Page config
 st.set_page_config(page_title="AI Study Buddy (OpenRouter)", layout="wide")
-st.title("📚 AI Study Buddy – Powered by OpenRouter (GPT or Mistral)")
-st.write("Upload your notes and ask questions using cloud-based LLMs.")
+st.title("📚 AI Study Buddy – Powered by OpenRouter (Mistral or GPT)")
+st.write("Upload your notes and ask questions. Powered by cloud-based LLMs.")
 
-# Configure OpenRouter (OpenAI-compatible)
+# OpenRouter API key and base
 openai.api_key = os.getenv("OPENROUTER_API_KEY")
 openai.api_base = "https://openrouter.ai/api/v1"
 
-# Load spaCy model
-nlp = spacy.load("en_core_web_sm")
+# Ensure spaCy model is available
+try:
+    nlp = spacy.load("en_core_web_sm")
+except:
+    os.system("python -m spacy download en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 
+# Extract main points from notes
 def extract_main_points(text, max_sentences=5):
     doc = nlp(text)
     sentences = [sent.text.strip() for sent in doc.sents if len(sent.text.strip()) > 40]
     return sentences[:max_sentences]
 
-# File uploader
+# Upload notes
 uploaded_file = st.file_uploader("Upload your notes (PDF or TXT)", type=["pdf", "txt"])
 file_text = ""
 
@@ -34,13 +39,12 @@ if uploaded_file:
             file_text += page.get_text()
     st.success("✅ Notes loaded!")
 
-# Ask question
+# Ask a question
 if file_text:
     question = st.text_input("Ask a question from your notes:")
     if question:
         with st.spinner("🤖 Thinking..."):
             try:
-                # Extract main points
                 key_sentences = extract_main_points(file_text)
                 refined_notes = "\n".join(key_sentences)
 
@@ -55,13 +59,15 @@ Question: {question}
 """
 
                 response = openai.ChatCompletion.create(
-                    model="mistralai/mistral-7b-instruct",  # or "openai/gpt-3.5-turbo"
+                    model="mistralai/mistral-7b-instruct",  # You can change to gpt-3.5 etc
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.3,
                     max_tokens=400,
                 )
+
                 answer = response['choices'][0]['message']['content']
                 st.success("🎯 Answer:")
                 st.write(answer)
+
             except Exception as e:
                 st.error(f"❌ Error: {e}")
